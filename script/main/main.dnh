@@ -1,0 +1,102 @@
+#TouhouDanmakufu[Stage]
+#Title["Fractalmaku (Vanilla)"]
+#ScriptVersion[3]
+#System["./System.txt"]
+
+let WAITPERIOD = 6; // Frames between updates
+let RESEED_PERIOD = 5; // Iterations (x2) between reseeds
+let NUM_HORIZ = 2;
+let NUM_VERT = 2;
+let IMAGENAME = "img3a.png";
+
+@Initialize{
+    TMain;
+}
+
+@MainLoop{
+    yield;
+}
+
+task TMain{
+    // Image. 512x512
+    let filepath = GetCurrentScriptDirectory ~ IMAGENAME;
+
+    // Render initial image
+    let init = ObjPrim_Create(OBJ_SPRITE_2D);
+    ObjPrim_SetTexture(init, filepath);
+    ObjRender_SetPosition(init, 320, 320, 1);
+    ObjSprite2D_SetSourceRect(init, 0, 0, 512, 512);
+    ObjSprite2D_SetDestRect(init, -320, -320, 320, 320);
+
+    yield;
+
+    // Capture screen to render target
+    RenderToTextureA1(GetReservedRenderTargetName(0), 20, 80, false);
+
+    // Create new render target for use as backup/reseeder
+    CreateRenderTarget("RESEED");
+    RenderToTextureA1("RESEED", 20, 80, false);
+
+    loop(WAITPERIOD) {yield;}
+
+    // Remove initial image
+    Obj_Delete(init);
+
+    // Set up four quadrants
+    let quads = [];
+    ascent(i in 0..NUM_HORIZ) {
+        ascent(j in 0..NUM_VERT) {
+            quads = quads ~ [CreateQuad(i, j)];
+        }
+    }
+
+    let count = 0;
+
+    // Loop
+    // We use the two render targets in tandem, having one store while the other resets
+    while(true) {
+        // Currently, 0 is holding the image long term. We will transfer to 1.
+        RenderToTextureA1(GetReservedRenderTargetName(1), 20, 80, false);
+        // Reset 0
+        RenderToTextureA1(GetReservedRenderTargetName(0), 20, 80, true);
+
+        // Update four quadrants with new image
+        ascent(i in 0..(NUM_VERT * NUM_HORIZ)) {
+            ObjPrim_SetTexture(quads[i], GetReservedRenderTargetName(1));
+        }
+
+        loop(WAITPERIOD) {yield;}
+
+        // Currently, 1 is holding the image long term. We will transfer to 0.
+        RenderToTextureA1(GetReservedRenderTargetName(0), 20, 80, false);
+        // Reset 1
+        RenderToTextureA1(GetReservedRenderTargetName(1), 20, 80, true);
+
+        // Update four quadrants with new image
+        ascent(i in 0..(NUM_VERT * NUM_HORIZ)) {
+            ObjPrim_SetTexture(quads[i], GetReservedRenderTargetName(0));
+        }
+
+        loop(WAITPERIOD) {yield;}
+
+        count += 1;
+        // Reseed
+        if (count % RESEED_PERIOD == 0 && count > 0) {
+            ascent(i in 0..(NUM_VERT * NUM_HORIZ)) {
+                ObjPrim_SetTexture(quads[i], "RESEED");
+            }
+        }
+    }
+}
+
+// Creates a quad. These are 320x320
+function CreateQuad(x, y) {
+    let ht = 640/NUM_VERT;
+    let wd = 640/NUM_HORIZ;
+    let quad = ObjPrim_Create(OBJ_SPRITE_2D);
+    ObjPrim_SetTexture(quad, GetReservedRenderTargetName(0));
+    ObjRender_SetPosition(quad, wd/2 + wd * x, ht/2 + ht * y, 1);
+    ObjSprite2D_SetSourceRect(quad, 0, 0, 640, 640);
+    ObjSprite2D_SetDestRect(quad, -wd/2, -ht/2, wd/2, ht/2);
+    return quad;
+}

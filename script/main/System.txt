@@ -1,0 +1,14 @@
+@Loading {
+}
+
+@Initialize{
+    SetStgFrame(0, 0, 640, 640, 20, 80); // Entire screen
+}
+
+@MainLoop{
+    yield;
+}
+
+@Event{
+}
+

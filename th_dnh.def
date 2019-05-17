@@ -1,0 +1,8 @@
+//package.script.main = script/ExRumia/ExRumia_Package_Main.txt
+
+window.title = Fractalmakufu
+
+// Smallest is 640x480
+screen.height=640
+screen.width=640
+
